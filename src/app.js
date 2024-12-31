@@ -149,7 +149,7 @@ function scrollToBottom() {
  * 서버에 메시지를 보내고, 응답을 받아오는 함수
  */
 async function getAssistantResponse(userMessage) {
-  const mode = apiSelector.value;  // "assistant" 또는 "naive"
+  const mode = "naive";  // "assistant" 또는 "naive"
   let url;
   let payload;
 
