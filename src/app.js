@@ -84,7 +84,16 @@ async function clearAllData() {
 
 function createMessageBubble(content, sender = "user") {
   const wrapper = document.createElement("div");
-  wrapper.classList.add("mb-6", "flex", "items-start", "space-x-3");
+  wrapper.classList.add("mb-6", "flex", "items-start");
+  
+  // 메시지 보낸 주체에 따라 정렬을 다르게
+  if (sender === "assistant") {
+    // 좌측 배치 (기본 정렬)
+    wrapper.classList.add("flex-row", "space-x-3");
+  } else {
+    // 우측 배치 (정렬 반전)
+    wrapper.classList.add("flex-row-reverse", "space-x-3", "space-x-reverse");
+  }
 
   const avatar = document.createElement("div");
   avatar.classList.add(
@@ -101,10 +110,10 @@ function createMessageBubble(content, sender = "user") {
 
   if (sender === "assistant") {
     avatar.classList.add("bg-gradient-to-br", "from-green-400", "to-green-600");
-    avatar.textContent = "A";
+    avatar.textContent = "봇";
   } else {
     avatar.classList.add("bg-gradient-to-br", "from-blue-500", "to-blue-700");
-    avatar.textContent = "U";
+    avatar.textContent = "나";
   }
 
   const bubble = document.createElement("div");
@@ -130,6 +139,7 @@ function createMessageBubble(content, sender = "user") {
   wrapper.appendChild(bubble);
   return wrapper;
 }
+
 
 function scrollToBottom() {
   chatContainer.scrollTop = chatContainer.scrollHeight;
@@ -196,6 +206,8 @@ messageForm.addEventListener("submit", async (e) => {
   scrollToBottom();
 
   try {
+
+    showLoading();
     // 서버에 메시지를 보내고 응답 받기
     const response = await getAssistantResponse(message);
 
@@ -209,7 +221,9 @@ messageForm.addEventListener("submit", async (e) => {
     chatContainer.appendChild(createMessageBubble(errMsg, "assistant"));
     await saveMessage("assistant", errMsg);
     scrollToBottom();
-  }
+  } finally {
+    hideLoading();
+  } 
 });
 
 async function loadExistingMessages() {
@@ -232,3 +246,17 @@ newChatBtn.addEventListener("click", async () => {
 initDB().then(loadExistingMessages);
 
 console.log(BASE_URL);
+
+// 로딩 이미지 엘리먼트 가져오기
+const loadingImg = document.querySelector(".loading");
+
+// 로딩 표시 함수
+function showLoading() {
+  loadingImg.style.display = "flex";
+}
+
+// 로딩 숨김 함수
+function hideLoading() {
+  loadingImg.style.display = "none";
+}
+
