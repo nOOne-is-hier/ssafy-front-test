@@ -1,0 +1,23 @@
+{
+  "name": "ssafy-2024-frontend",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "rm -rf dist .parcel-cache && parcel serve index.html",
+    "build": "rm -rf dist .parcel-cache && cross-env NODE_ENV=production parcel build index.html --public-url .",
+    "deploy": "gh-pages -d dist"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "cross-env": "^7.0.3",
+    "gh-pages": "^6.2.0",
+    "parcel": "^2.13.2",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16"
+  },
+  "homepage": "https://beomi.github.io/ssafy-2024-frontend/"
+}
