@@ -1,13 +1,13 @@
 import os
-from typing import List, Optional
+from typing import List
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from langchain_community.vectorstores import Pinecone  # 업데이트된 임포트
+from langchain_community.vectorstores import Pinecone as LangChainPinecone  # 수정된 임포트
 from langchain_upstage import ChatUpstage, UpstageEmbeddings
 from langchain.embeddings.base import Embeddings
-from pinecone import Pinecone as PineconeClient
+from pinecone import Pinecone, ServerlessSpec  # 최신 Pinecone 클래스 임포트
 from pydantic import BaseModel
 from transformers import AutoTokenizer, AutoModel  # SciBERT 관련 라이브러리
 import torch  # PyTorch
@@ -24,15 +24,55 @@ logger = logging.getLogger(__name__)
 model_name = "allenai/scibert_scivocab_uncased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 scibert_model = AutoModel.from_pretrained(model_name)
+scibert_model.eval()  # 모델을 평가 모드로 설정
+logger.info(f"SciBERT model hidden size: {scibert_model.config.hidden_size}")
 
-# Pinecone 및 Upstage 설정
+# Pinecone 클라이언트 설정
 pinecone_api_key = os.environ.get("PINECONE_API_KEY")
 pinecone_env = os.environ.get("PINECONE_ENV")  # Pinecone 환경 변수 추가
-pinecone_client = PineconeClient(api_key=pinecone_api_key, environment=pinecone_env)
+
+# 디버깅용 로그 (실제 배포 시 제거)
+logger.info(f"PINECONE_API_KEY: {'set' if pinecone_api_key else 'not set'}")
+logger.info(f"PINECONE_ENV: {'set' if pinecone_env else 'not set'}")
+
+if not pinecone_api_key or not pinecone_env:
+    logger.error("Pinecone API key or environment not set in .env file")
+    raise ValueError("Pinecone API key or environment not set in .env file")
+
+# Pinecone 클라이언트 인스턴스화 (클래스 기반)
+pinecone_client = Pinecone(
+    api_key=pinecone_api_key,
+    environment=pinecone_env
+)
+'''
+# Pinecone 인덱스 생성 함수
+def create_pinecone_index(index_name, dimension, metric="cosine"):
+    if index_name not in pinecone_client.list_indexes():
+        pinecone_client.create_index(
+            name=index_name,
+            dimension=dimension,
+            metric=metric,
+            spec=ServerlessSpec(cloud='aws', region='us-east1')  # 지원되는 리전으로 변경
+        )
+        logger.info(f"Created Pinecone index: {index_name} with dimension {dimension}")
+    else:
+        # 기존 인덱스의 차원 확인
+        describe = pinecone_client.describe_index(index_name)
+        if describe.dimension != dimension:
+            logger.error(f"Index {index_name} has dimension {describe.dimension}, expected {dimension}.")
+            raise ValueError(f"Index {index_name} has incorrect dimension.")
+        else:
+            logger.info(f"Pinecone index {index_name} already exists with correct dimension.")
+
+# 모델별 인덱스 생성
+create_pinecone_index("model1-index", 4096, metric="cosine")
+create_pinecone_index("model2-index", 4096, metric="cosine")
+create_pinecone_index("model3-index", 768, metric="cosine")
+'''
 
 # Upstage 임베딩 설정
 embedding_upstage = UpstageEmbeddings(model="embedding-query")
-chat_upstage = ChatUpstage()
+chat_upstage = ChatUpstage(api_key=os.environ.get("UPSTAGE_API_KEY"), model="solar-pro")
 
 # 모델 구성 정의
 MODEL_CONFIGS = {
@@ -101,38 +141,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class MessageRequest(BaseModel):
-    message: str
-    model_id: int
-    
+class Message(BaseModel):
+    role: str
+    content: str
 
-from langchain.embeddings.base import Embeddings
+class ChatRequest(BaseModel):
+    messages: List[Message]
+    model_id: int
+
+class ChatResponse(BaseModel):
+    reply: str
 
 class SciBertEmbeddings(Embeddings):
     def __init__(self, model_name: str = "allenai/scibert_scivocab_uncased"):
         self.tokenizer = AutoTokenizer.from_pretrained(model_name)
         self.model = AutoModel.from_pretrained(model_name)
-    
+        self.model.eval()  # 모델을 평가 모드로 설정
+        logger.info(f"SciBERT model hidden size: {self.model.config.hidden_size}")
+
     def embed_documents(self, texts: List[str]) -> List[List[float]]:
         embeddings = []
-        for text in texts:
+        for i, text in enumerate(texts):
             inputs = self.tokenizer(text, return_tensors="pt", max_length=512, truncation=True, padding=True)
             with torch.no_grad():
                 outputs = self.model(**inputs)
-                # 평균 풀링을 사용하여 임베딩 생성 후 리스트로 변환
+                logger.debug(f"Output last_hidden_state shape for text {i}: {outputs.last_hidden_state.shape}")
+                # 평균 풀링: [batch_size, seq_length, hidden_size] -> [batch_size, hidden_size]
                 embedding = outputs.last_hidden_state.mean(dim=1).squeeze().tolist()
+                logger.info(f"SciBERT Embedding {i} dimension: {len(embedding)}")
                 embeddings.append(embedding)
         return embeddings
-    
+
     def embed_query(self, text: str) -> List[float]:
-        return self.embed_documents([text])[0]
+        embedding = self.embed_documents([text])[0]
+        logger.info(f"SciBERT Embedding Query dimension: {len(embedding)}")
+        return embedding
 
-
-@app.post("/chat")
-async def chat_endpoint(req: MessageRequest):
+@app.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(req: ChatRequest):
     # model_id 유효성 검증
     model_config = MODEL_CONFIGS.get(req.model_id)
     if not model_config:
+        logger.error(f"Invalid model_id: {req.model_id}")
         raise HTTPException(status_code=400, detail="Invalid model_id")
 
     # Pinecone 인덱스 선택
@@ -142,16 +192,18 @@ async def chat_endpoint(req: MessageRequest):
     if req.model_id == 3:
         # 모델 3의 경우 SciBERT Embeddings 객체 사용
         scibert_embeddings = SciBertEmbeddings()
-        pinecone_vectorstore = Pinecone.from_existing_index(
+        pinecone_vectorstore = LangChainPinecone.from_existing_index(
             index_name=index_name,
             embedding=scibert_embeddings
         )
+        logger.info(f"Using SciBERT Embeddings for model_id={req.model_id}")
     else:
         # 다른 모델은 Upstage 임베딩 사용
-        pinecone_vectorstore = Pinecone.from_existing_index(
+        pinecone_vectorstore = LangChainPinecone.from_existing_index(
             index_name=index_name,
             embedding=embedding_upstage
         )
+        logger.info(f"Using Upstage Embeddings for model_id={req.model_id}")
 
     # 리트리버 설정
     retriever = pinecone_vectorstore.as_retriever(
@@ -159,9 +211,19 @@ async def chat_endpoint(req: MessageRequest):
         search_kwargs={"k": model_config["k"]},
     )
 
-    # 문서 검색 (get_relevant_documents 대신 invoke 사용)
+    # 문서 검색
     try:
-        result_docs = retriever.invoke(req.message)  # 최신 메서드 사용
+        if req.model_id == 3:
+            # 모델 3의 경우, 단일 쿼리 텍스트 사용 (최근 메시지)
+            query_text = req.messages[-1].content
+            logger.info(f"Using single query text for model_id=3: {query_text}")
+            result_docs = retriever.invoke([query_text])
+        else:
+            # 다른 모델은 모든 메시지를 리스트로 전달
+            messages_content = [msg.content for msg in req.messages]
+            logger.info(f"Messages content: {messages_content}")
+            result_docs = retriever.invoke(messages_content)
+        logger.info(f"Retrieved {len(result_docs)} documents")
     except Exception as e:
         logger.error(f"Error during retrieval: {e}")
         raise HTTPException(status_code=500, detail="Error during retrieval")
@@ -170,15 +232,12 @@ async def chat_endpoint(req: MessageRequest):
     context = "\n\n".join([doc.page_content for doc in result_docs])
 
     # MODEL_CONFIGS에서 해당 모델의 프롬프트 가져오기
-    model_prompt = model_config["prompt"].format(context=context, input=req.message)
+    model_prompt = model_config["prompt"].format(context=context, input=req.messages[-1].content)
 
     # ChatPromptTemplate을 사용하여 프롬프트 정의
     prompt = ChatPromptTemplate.from_messages(
         [
-            (
-                "system",
-                model_prompt
-            ),
+            ("system", model_prompt),
             ("human", "{input}"),
         ]
     )
@@ -188,13 +247,22 @@ async def chat_endpoint(req: MessageRequest):
 
     # 체인 호출 시 'context'와 'input'을 모두 제공
     try:
-        result = chain.invoke({"context": context, "input": req.message})
+        result = chain.invoke({"context": context, "input": req.messages[-1].content})
+        logger.info(f"Chain result: {result}")
     except Exception as e:
         logger.error(f"Error during QA chain invocation: {e}")
         raise HTTPException(status_code=500, detail="Internal Server Error")
 
-    return {"reply": result}
+    # result가 AIMessage 객체라면 content 추출
+    if hasattr(result, 'content'):
+        reply_content = result.content
+        logger.info(f"Reply content: {reply_content}")
+    else:
+        # 예상 외의 반환형 처리
+        logger.error(f"Unexpected result type: {type(result)}")
+        raise HTTPException(status_code=500, detail="Unexpected response format from chain")
 
+    return ChatResponse(reply=reply_content)
 
 @app.get("/health")
 @app.get("/")

@@ -1,3 +1,5 @@
+// app.js
+
 import "regenerator-runtime/runtime"; // if needed for async/await in older browsers
 
 const chatContainer = document.getElementById("chat-container");
@@ -8,85 +10,8 @@ const modelSelector = document.getElementById("api-selector");
 
 const BASE_URL = process.env.API_ENDPOINT;
 
-let db; // IndexedDB reference
-
-// Initialize IndexedDB
-async function initDB() {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open("myChatDB", 1);
-    request.onupgradeneeded = function (e) {
-      db = e.target.result;
-      if (!db.objectStoreNames.contains("chats")) {
-        db.createObjectStore("chats", { keyPath: "id", autoIncrement: true });
-      }
-      if (!db.objectStoreNames.contains("metadata")) {
-        db.createObjectStore("metadata", { keyPath: "key" });
-      }
-    };
-    request.onsuccess = function (e) {
-      db = e.target.result;
-      resolve();
-    };
-    request.onerror = function (e) {
-      reject(e);
-    };
-  });
-}
-
-// Save a chat message to the database
-async function saveMessage(role, content) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("chats", "readwrite");
-    const store = tx.objectStore("chats");
-    store.add({ role, content });
-    tx.oncomplete = () => resolve();
-    tx.onerror = (e) => reject(e);
-  });
-}
-
-// Retrieve all chat messages from the database
-async function getAllMessages() {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("chats", "readonly");
-    const store = tx.objectStore("chats");
-    const req = store.getAll();
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = (e) => reject(e);
-  });
-}
-
-// Save metadata to the database
-async function saveMetadata(key, value) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("metadata", "readwrite");
-    const store = tx.objectStore("metadata");
-    store.put({ key, value });
-    tx.oncomplete = () => resolve();
-    tx.onerror = (e) => reject(e);
-  });
-}
-
-// Retrieve metadata from the database
-async function getMetadata(key) {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction("metadata", "readonly");
-    const store = tx.objectStore("metadata");
-    const req = store.get(key);
-    req.onsuccess = () => resolve(req.result ? req.result.value : null);
-    req.onerror = (e) => reject(e);
-  });
-}
-
-// Clear all data from the database
-async function clearAllData() {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(["chats", "metadata"], "readwrite");
-    tx.objectStore("chats").clear();
-    tx.objectStore("metadata").clear();
-    tx.oncomplete = () => resolve();
-    tx.onerror = (e) => reject(e);
-  });
-}
+let messages = []; // 대화 히스토리 배열
+const MAX_MESSAGES = 5; // 유지할 메시지 수
 
 // Create a chat message bubble element
 function createMessageBubble(content, sender = "user") {
@@ -155,12 +80,11 @@ function scrollToBottom() {
 /**
  * 서버에 메시지를 보내고, 응답을 받아오는 함수
  */
-async function getAssistantResponse(userMessage) {
-  const modelId = modelSelector.value; // Get selected model ID
-  const url = `${BASE_URL}/chat`;
-  const payload = { message: userMessage, model_id: parseInt(modelId, 10) };
+async function getAssistantResponse() {
+  const modelId = parseInt(modelSelector.value, 10); // Get selected model ID
+  const payload = { messages, model_id: modelId };
 
-  const response = await fetch(url, {
+  const response = await fetch(`${BASE_URL}/chat`, {
       method: "POST",
       headers: {
           "Content-Type": "application/json",
@@ -174,7 +98,7 @@ async function getAssistantResponse(userMessage) {
 
   const data = await response.json();
 
-  return data.reply.content;
+  return data.reply;
 }
 
 // Handle message form submission
@@ -183,50 +107,68 @@ messageForm.addEventListener("submit", async (e) => {
   const message = userInput.value.trim();
   if (!message) return;
 
-  // 사용자 메시지 화면에 추가 + DB 저장
+  // 사용자 메시지 화면에 추가
   chatContainer.appendChild(createMessageBubble(message, "user"));
-  await saveMessage("user", message);
+  scrollToBottom();
+
+  // 메시지를 배열에 추가
+  messages.push({ role: "user", content: message });
+
+  // 최근 MAX_MESSAGES개의 메시지만 유지
+  if (messages.length > MAX_MESSAGES) {
+    messages = messages.slice(-MAX_MESSAGES);
+  }
+
+  // 메시지를 로컬 스토리지에 저장
+  saveMessagesToLocalStorage();
 
   userInput.value = "";
-  scrollToBottom();
 
   try {
-
     showLoading();
     // 서버에 메시지를 보내고 응답 받기
-    const response = await getAssistantResponse(message);
+    const response = await getAssistantResponse();
 
-    // 서버에서 받은 assistant 메시지 화면 + DB 저장
+    // 서버에서 받은 assistant 메시지 화면에 추가
     chatContainer.appendChild(createMessageBubble(response, "assistant"));
-    await saveMessage("assistant", response);
     scrollToBottom();
+
+    // 메시지를 배열에 추가
+    messages.push({ role: "assistant", content: response });
+
+    // 최근 MAX_MESSAGES개의 메시지만 유지
+    if (messages.length > MAX_MESSAGES) {
+      messages = messages.slice(-MAX_MESSAGES);
+    }
+
+    // 메시지를 로컬 스토리지에 저장
+    saveMessagesToLocalStorage();
   } catch (error) {
     console.error("Error fetching assistant response:", error);
-    const errMsg = "Error fetching response. Check console.";
+    const errMsg = "응답을 가져오는 중 오류가 발생했습니다. 콘솔을 확인해주세요.";
     chatContainer.appendChild(createMessageBubble(errMsg, "assistant"));
-    await saveMessage("assistant", errMsg);
     scrollToBottom();
+
+    // 에러 메시지를 배열에 추가
+    messages.push({ role: "assistant", content: errMsg });
+
+    // 최근 MAX_MESSAGES개의 메시지만 유지
+    if (messages.length > MAX_MESSAGES) {
+      messages = messages.slice(-MAX_MESSAGES);
+    }
+
+    // 메시지를 로컬 스토리지에 저장
+    saveMessagesToLocalStorage();
   } finally {
     hideLoading();
-  } 
+  }
 });
 
-// Load existing chat messages on page load
-async function loadExistingMessages() {
-  const allMsgs = await getAllMessages();
-  for (const msg of allMsgs) {
-    chatContainer.appendChild(createMessageBubble(msg.content, msg.role));
-  }
-  scrollToBottom();
-}
-
-// Clear chat and reset metadata for a new conversation
-newChatBtn.addEventListener("click", async () => {
-  // DB 및 채팅창 clear
-  await clearAllData();
-  await saveMetadata("thread_id", null); // thread_id 초기화
+// Clear chat and reset messages for a new conversation
+newChatBtn.addEventListener("click", () => {
+  messages = [];
   chatContainer.innerHTML = "";
-  // 이제 새 채팅을 시작할 수 있음
+  localStorage.removeItem("chatMessages");
 });
 
 // 로딩 이미지 엘리먼트 가져오기
@@ -242,9 +184,25 @@ function hideLoading() {
   loadingImg.style.display = "none";
 }
 
-// 초기화 후 기존 메시지 로드
-initDB().then(() => {
-  // Existing messages are now loaded within DOMContentLoaded
-}).catch((error) => {
-  console.error("Error initializing DB:", error);
-});
+// 메시지 배열을 로컬 스토리지에 저장
+function saveMessagesToLocalStorage() {
+  localStorage.setItem("chatMessages", JSON.stringify(messages));
+}
+
+// 로컬 스토리지에서 메시지 불러오기
+function loadMessagesFromLocalStorage() {
+  const storedMessages = localStorage.getItem("chatMessages");
+  if (storedMessages) {
+    messages = JSON.parse(storedMessages);
+    chatContainer.innerHTML = "";
+    messages.forEach(msg => {
+      chatContainer.appendChild(createMessageBubble(msg.content, msg.role));
+    });
+    scrollToBottom();
+  }
+}
+
+// 페이지 로드 시 메시지 불러오기
+window.onload = () => {
+  loadMessagesFromLocalStorage();
+};
