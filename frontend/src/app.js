@@ -3,13 +3,14 @@ import "regenerator-runtime/runtime"; // if needed for async/await in older brow
 const chatContainer = document.getElementById("chat-container");
 const messageForm = document.getElementById("message-form");
 const userInput = document.getElementById("user-input");
-const apiSelector = document.getElementById("api-selector");
 const newChatBtn = document.getElementById("new-chat-btn");
+const modelSelector = document.getElementById("api-selector");
 
 const BASE_URL = process.env.API_ENDPOINT;
 
-let db;
+let db; // IndexedDB reference
 
+// Initialize IndexedDB
 async function initDB() {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open("myChatDB", 1);
@@ -32,6 +33,7 @@ async function initDB() {
   });
 }
 
+// Save a chat message to the database
 async function saveMessage(role, content) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("chats", "readwrite");
@@ -42,6 +44,7 @@ async function saveMessage(role, content) {
   });
 }
 
+// Retrieve all chat messages from the database
 async function getAllMessages() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("chats", "readonly");
@@ -52,6 +55,7 @@ async function getAllMessages() {
   });
 }
 
+// Save metadata to the database
 async function saveMetadata(key, value) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("metadata", "readwrite");
@@ -62,6 +66,7 @@ async function saveMetadata(key, value) {
   });
 }
 
+// Retrieve metadata from the database
 async function getMetadata(key) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction("metadata", "readonly");
@@ -72,6 +77,7 @@ async function getMetadata(key) {
   });
 }
 
+// Clear all data from the database
 async function clearAllData() {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(["chats", "metadata"], "readwrite");
@@ -82,6 +88,7 @@ async function clearAllData() {
   });
 }
 
+// Create a chat message bubble element
 function createMessageBubble(content, sender = "user") {
   const wrapper = document.createElement("div");
   wrapper.classList.add("mb-6", "flex", "items-start");
@@ -140,7 +147,7 @@ function createMessageBubble(content, sender = "user") {
   return wrapper;
 }
 
-
+// Scroll the chat container to the bottom
 function scrollToBottom() {
   chatContainer.scrollTop = chatContainer.scrollHeight;
 }
@@ -149,26 +156,9 @@ function scrollToBottom() {
  * 서버에 메시지를 보내고, 응답을 받아오는 함수
  */
 async function getAssistantResponse(userMessage) {
-  const mode = "naive";  // "assistant" 또는 "naive"
-  let url;
-  let payload;
-
-  const thread_id = await getMetadata("thread_id"); // thread_id를 항상 읽어옴
-  // if (!thread_id && mode === "assistant") {
-  //     console.error("Missing thread_id in assistant mode.");
-  //     return "Error: Thread ID is missing.";
-  // }
-
-  if (mode === "assistant") {
-      payload = { message: userMessage };
-      if (thread_id) {
-          payload.thread_id = thread_id;
-      }
-      url = `${BASE_URL}/assistant`;
-  } else {
-      payload = { message: userMessage };
-      url = `${BASE_URL}/chat`;
-  }
+  const modelId = modelSelector.value; // Get selected model ID
+  const url = `${BASE_URL}/chat`;
+  const payload = { message: userMessage, model_id: parseInt(modelId, 10) };
 
   const response = await fetch(url, {
       method: "POST",
@@ -184,15 +174,10 @@ async function getAssistantResponse(userMessage) {
 
   const data = await response.json();
 
-  // thread_id를 업데이트
-  if (mode === "assistant" && data.thread_id) {
-      await saveMetadata("thread_id", data.thread_id);
-  }
-
-  return data.reply;
+  return data.reply.content;
 }
 
-
+// Handle message form submission
 messageForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const message = userInput.value.trim();
@@ -226,6 +211,7 @@ messageForm.addEventListener("submit", async (e) => {
   } 
 });
 
+// Load existing chat messages on page load
 async function loadExistingMessages() {
   const allMsgs = await getAllMessages();
   for (const msg of allMsgs) {
@@ -234,6 +220,7 @@ async function loadExistingMessages() {
   scrollToBottom();
 }
 
+// Clear chat and reset metadata for a new conversation
 newChatBtn.addEventListener("click", async () => {
   // DB 및 채팅창 clear
   await clearAllData();
@@ -241,11 +228,6 @@ newChatBtn.addEventListener("click", async () => {
   chatContainer.innerHTML = "";
   // 이제 새 채팅을 시작할 수 있음
 });
-
-// 초기화 후 기존 메시지 로드
-initDB().then(loadExistingMessages);
-
-console.log(BASE_URL);
 
 // 로딩 이미지 엘리먼트 가져오기
 const loadingImg = document.querySelector(".loading");
@@ -260,3 +242,9 @@ function hideLoading() {
   loadingImg.style.display = "none";
 }
 
+// 초기화 후 기존 메시지 로드
+initDB().then(() => {
+  // Existing messages are now loaded within DOMContentLoaded
+}).catch((error) => {
+  console.error("Error initializing DB:", error);
+});
