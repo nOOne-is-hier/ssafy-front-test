@@ -1,3 +1,8 @@
+'''
+기본 embed 코드
+'''
+
+
 import os
 
 from dotenv import load_dotenv
