@@ -1,7 +1,7 @@
 app = "stmgenie"
 
 [build]
-builder = "paketo-buildpacks/builder:base"
+builder = "paketobuildpacks/builder:base"
 
 [env]
 PORT = "8000"
