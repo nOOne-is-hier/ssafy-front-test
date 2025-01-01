@@ -3,7 +3,7 @@
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'ssafy-2024-backend-seoul2-test'
+app = 'stmgenie'
 primary_region = 'nrt'
 
 [build]

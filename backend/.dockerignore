@@ -14,6 +14,7 @@ embed.py
 embed1.py
 embed2.py
 embed3.py
+test.py
 
 # 환경 파일 (배포에 필요하지 않을 경우)
 .env
