@@ -93,6 +93,7 @@ async function getAssistantResponse() {
           "Content-Type": "application/json",
       },
       body: JSON.stringify(payload),
+      mode: "cors", // CORS 모드 활성화
   });
 
   if (!response.ok) {
