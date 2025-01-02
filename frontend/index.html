@@ -85,18 +85,40 @@
     <script type="module" src="./src/app.js"></script>
 
     <!-- 모달창 -->
-    <div id="manual-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden">
-        <div class="bg-white p-6 rounded shadow-lg w-96">
-          <h2 class="text-lg font-bold mb-4">사용자 매뉴얼</h2>
-          <p class="text-sm text-gray-600 mb-6">
-            <!--여기서부터 내용 채우면 됨-->
-            매뉴얼 내용 채우기!!!!!!!!!!!!!!!
-          </p>
-          <button id="close-btn" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
-            닫기
-          </button>
+<div id="manual-modal" class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center hidden">
+    <div class="bg-white p-8 rounded-xl shadow-2xl w-[600px]">
+      <h2 class="text-lg font-bold mb-4">사용자 매뉴얼</h2>
+      <div class="text-sm text-gray-600 mb-6">
+        <div>
+          <h1 class="manual-title">STM Genie 모델 개요</h1>
+          <h3 class="manual-content">
+            STM Genie는 STM 보드 관련 질문에 대한 다양한 응답 요구를 충족시키기 위해 세 가지 특화된 모델로 구성된 RAG 파이프라인을 채택하고 있습니다.
+            각 모델은 질문의 복잡도와 응답의 목적에 따라 최적화되어 있으며, 이를 통해 사용자에게 정확하고 유용한 정보를 제공합니다.
+          </h3>
         </div>
-      </div>    
+        <br/>
+        <div>
+          <h1 class="manual-title">모델 정보</h1>
+          <h3 class="manual-content">
+            <p class="model-name">모델 1: 단순 질문 특화</p>
+            <li>빠르고 간단한 응답 제공.</li>
+            <p class="model-name">모델 2: Chunking 최적화 및 Reranker 도입</p>
+            <li>다양한 정보를 포함한 포괄적인 응답 제공.</li>
+            <p class="model-name">모델 3: 전문가 질문 특화</p>
+            <li>복잡하고 전문적인 질문에 대해 심층적이고 분석적인 응답 제공.</li>
+          </h3>
+        </div>
+        <br />
+      </div>
+      <button
+        id="close-btn"
+        class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition"
+        >
+        닫기
+      </button>
+    </div>
+  </div>
+  
 </body>
 
 <style>
@@ -129,6 +151,19 @@
 @keyframes spin {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
+}
+
+.manual-title {
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-bottom: 1rem;
+}
+.manual-content {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+.model-name {
+    font-weight:bold;
 }
 </style>
 
