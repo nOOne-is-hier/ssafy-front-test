@@ -29,11 +29,11 @@ jsonpointer==3.0.0
 langchain==0.3.13
 langchain-community==0.3.13
 langchain-core==0.3.28
-langchain-huggingface==0.1.2
+langchain-huggingface
 langchain-openai==0.2.12
 langchain-pinecone==0.2.0
 langchain-text-splitters==0.3.3
-langchain-upstage==0.4.0
+langchain-upstage
 langgraph==0.2.59
 langgraph-checkpoint==2.0.9
 langgraph-sdk==0.1.48
@@ -83,7 +83,7 @@ tiktoken==0.8.0
 tokenizers
 torch==2.5.1
 tqdm==4.67.1
-transformers==4.47.1
+transformers
 typing-inspect==0.9.0
 typing_extensions==4.12.2
 urllib3==2.3.0
