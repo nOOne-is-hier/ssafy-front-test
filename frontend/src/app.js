@@ -7,6 +7,9 @@ const messageForm = document.getElementById("message-form");
 const userInput = document.getElementById("user-input");
 const newChatBtn = document.getElementById("new-chat-btn");
 const modelSelector = document.getElementById("api-selector");
+const manualBtn = document.getElementById("manual-btn");
+const modal = document.getElementById("manual-modal");
+const closeBtn = document.getElementById("close-btn");
 
 const BASE_URL = process.env.API_ENDPOINT;
 
@@ -42,7 +45,7 @@ function createMessageBubble(content, sender = "user") {
 
   if (sender === "assistant") {
     avatar.classList.add("bg-gradient-to-br", "from-green-400", "to-green-600");
-    avatar.textContent = "봇";
+    avatar.textContent = modelSelector.value;
   } else {
     avatar.classList.add("bg-gradient-to-br", "from-blue-500", "to-blue-700");
     avatar.textContent = "나";
@@ -100,6 +103,26 @@ async function getAssistantResponse() {
 
   return data.reply;
 }
+
+/**
+ * 매뉴얼 버튼 눌렀을 때->매뉴얼 모달창 나오게
+ */
+manualBtn.addEventListener("click", () => {
+  modal.classList.remove("hidden"); // hidden 클래스 제거
+});
+// 매뉴얼 모달창 닫기
+closeBtn.addEventListener("click", () => {
+  modal.classList.add("hidden"); // hidden 클래스 추가
+});
+
+// 모달창 외부 클릭 시 닫기
+modal.addEventListener("click", (event) => {
+  if (event.target === modal) {
+    modal.classList.add("hidden");
+  }
+});
+
+
 
 // Handle message form submission
 messageForm.addEventListener("submit", async (e) => {
