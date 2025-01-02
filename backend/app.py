@@ -59,7 +59,7 @@ MODEL_CONFIGS = {
     1: {
         "index_name": "model1",
         "dimension": 4096,
-        "k": 1,
+        "k": 2,
         "threshold": 0.6,
         "prompt": '''{context}
 
@@ -73,7 +73,7 @@ MODEL_CONFIGS = {
     2: {
         "index_name": "model2",
         "dimension": 4096,
-        "k": 3,
+        "k": 10,
         "threshold": None,
         "prompt": '''{context}
 
@@ -92,7 +92,7 @@ MODEL_CONFIGS = {
     3: {
         "index_name": "model3",
         "dimension": 768,
-        "k": 1,
+        "k": 3,
         "threshold": 0.8,
         "prompt": '''{context}
 
@@ -220,9 +220,9 @@ async def chat_endpoint(req: ChatRequest):
                 # 점수를 기준으로 내림차순 정렬
                 scored_docs.sort(key=lambda x: x[1], reverse=True)
 
-                # 정렬된 문서만 다시 추출
-                result_docs = [doc for doc, score in scored_docs]
-                logger.info(f"Documents reranked for model_id=2")
+                # 최종 상위 3개 문서만 선택
+                result_docs = [doc for doc, score in scored_docs[:3]]
+                logger.info(f"Reranker selected top {len(result_docs)} documents")
     except Exception as e:
         logger.error(f"Error during retrieval: {e}")
         raise HTTPException(status_code=500, detail="Error during retrieval")
