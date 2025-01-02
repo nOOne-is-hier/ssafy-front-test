@@ -14,7 +14,7 @@ const closeBtn = document.getElementById("close-btn");
 const BASE_URL = process.env.API_ENDPOINT;
 
 let messages = []; // 대화 히스토리 배열
-const MAX_MESSAGES = 5; // 유지할 메시지 수
+const MAX_MESSAGES = 10; // 유지할 메시지 수
 
 // Create a chat message bubble element
 function createMessageBubble(content, sender = "user") {
