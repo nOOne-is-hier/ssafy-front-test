@@ -1,23 +1,22 @@
-# fly.toml app configuration file generated for stm-genie on 2025-01-02T14:19:53+09:00
+# fly.toml app configuration file generated for stm-genie on 2025-01-02T18:05:56+09:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = "stm-genie"
-primary_region = "nrt"
+app = 'stm-genie'
+primary_region = 'nrt'
 
 [build]
-  dockerfile = "backend/Dockerfile"
 
 [http_service]
   internal_port = 8000
   force_https = true
-  auto_stop_machines = "stop"
+  auto_stop_machines = 'stop'
   auto_start_machines = true
   min_machines_running = 0
-  processes = ["app"]
+  processes = ['app']
 
 [[vm]]
-  memory = "2gb"
-  cpu_kind = "shared"
+  memory = '2gb'
+  cpu_kind = 'shared'
   cpus = 1

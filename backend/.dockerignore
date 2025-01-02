@@ -1,28 +1,5 @@
-# Node.js 관련
-node_modules
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# 환경 변수 파일
-.env
-.env.*
-
-# 빌드 관련 파일
-build/
-dist/
-.cache/
-.parcel-cache
-
-# Python 관련
+fly.toml
+.git/
 __pycache__/
-*.py[cod]
-
-# macOS 관련
-.DS_Store
-
-# Fly.io 관련
-.flyignore
-.fly/
+.envrc
+.venv/
