@@ -66,13 +66,13 @@ def embed_text(text, tokenizer, model, device):
 if __name__ == '__main__':
     # Pinecone API Key 및 환경 변수 가져오기
     pinecone_api_key = os.environ.get("PINECONE_API_KEY")
-    pinecone_env = os.environ.get("PINECONE_ENVIRONMENT")  # 예: "us-east1-gcp"
+    pinecone_env = os.environ.get("PINECONE_ENV")  # 예: "us-east1-gcp"
 
     logger.info(f"PINECONE_API_KEY: {'설정됨' if pinecone_api_key else '설정되지 않음'}")
-    logger.info(f"PINECONE_ENVIRONMENT: {'설정됨' if pinecone_env else '설정되지 않음'}")
+    logger.info(f"PINECONE_ENV: {'설정됨' if pinecone_env else '설정되지 않음'}")
 
     if not pinecone_api_key or not pinecone_env:
-        logger.error("PINECONE_API_KEY 또는 PINECONE_ENVIRONMENT 환경 변수가 설정되어 있지 않습니다.")
+        logger.error("PINECONE_API_KEY 또는 PINECONE_ENV 환경 변수가 설정되어 있지 않습니다.")
         exit(1)
 
     # Pinecone 클라이언트 초기화
@@ -84,8 +84,12 @@ if __name__ == '__main__':
         exit(1)
 
     # 인덱스 이름과 PDF 경로 설정
-    index_name = "model3-index"
-    pdf_path = "usart.pdf"
+    # index_name = "model3-index"
+    # pdf_path = "usart.pdf"
+
+    # for real service
+    index_name = "model3"
+    pdf_path = "raw_data.pdf"
 
     # Pinecone 인덱스 생성 및 연결
     try:

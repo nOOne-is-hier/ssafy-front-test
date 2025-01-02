@@ -43,8 +43,12 @@ pinecone_api_key = os.environ.get("PINECONE_API_KEY")
 pc = Pinecone(api_key=pinecone_api_key)
 
 # Index and PDF Path
-index_name = "model2-index"  # 변경된 모델 2에 맞는 인덱스 이름
-pdf_path = "usart.pdf"
+# index_name = "model2-index"  # 변경된 모델 2에 맞는 인덱스 이름
+# pdf_path = "usart.pdf"
+
+# for real service
+index_name = "model2"  # 변경된 모델 2에 맞는 인덱스 이름
+pdf_path = "raw_data.pdf"
 
 # Check if index exists
 if index_name not in pc.list_indexes().names():

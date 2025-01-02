@@ -77,7 +77,7 @@ chat_upstage = ChatUpstage(api_key=os.environ.get("UPSTAGE_API_KEY"), model="sol
 # 모델 구성 정의
 MODEL_CONFIGS = {
     1: {
-        "index_name": "model1-index",
+        "index_name": "model1",
         "dimension": 4096,
         "k": 1,
         "threshold": 0.6,
@@ -91,7 +91,7 @@ MODEL_CONFIGS = {
 '''
     },
     2: {
-        "index_name": "model2-index",
+        "index_name": "model2",
         "dimension": 4096,
         "k": 3,
         "threshold": None,
@@ -110,7 +110,7 @@ MODEL_CONFIGS = {
 '''
     },
     3: {
-        "index_name": "model3-index",
+        "index_name": "model3",
         "dimension": 768,
         "k": 1,
         "threshold": 0.8,
