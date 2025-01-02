@@ -13,6 +13,7 @@ from transformers import AutoTokenizer, AutoModel  # SciBERT 관련 라이브러
 import torch  # PyTorch
 from langchain.prompts.chat import ChatPromptTemplate
 import logging
+from sentence_transformers import SentenceTransformer, CrossEncoder  # Reranker 관련 임포트
 
 load_dotenv()
 
@@ -44,40 +45,19 @@ pinecone_client = Pinecone(
     api_key=pinecone_api_key,
     environment=pinecone_env
 )
-'''
-# Pinecone 인덱스 생성 함수
-def create_pinecone_index(index_name, dimension, metric="cosine"):
-    if index_name not in pinecone_client.list_indexes():
-        pinecone_client.create_index(
-            name=index_name,
-            dimension=dimension,
-            metric=metric,
-            spec=ServerlessSpec(cloud='aws', region='us-east1')  # 지원되는 리전으로 변경
-        )
-        logger.info(f"Created Pinecone index: {index_name} with dimension {dimension}")
-    else:
-        # 기존 인덱스의 차원 확인
-        describe = pinecone_client.describe_index(index_name)
-        if describe.dimension != dimension:
-            logger.error(f"Index {index_name} has dimension {describe.dimension}, expected {dimension}.")
-            raise ValueError(f"Index {index_name} has incorrect dimension.")
-        else:
-            logger.info(f"Pinecone index {index_name} already exists with correct dimension.")
-
-# 모델별 인덱스 생성
-create_pinecone_index("model1-index", 4096, metric="cosine")
-create_pinecone_index("model2-index", 4096, metric="cosine")
-create_pinecone_index("model3-index", 768, metric="cosine")
-'''
 
 # Upstage 임베딩 설정
 embedding_upstage = UpstageEmbeddings(model="embedding-query")
 chat_upstage = ChatUpstage(api_key=os.environ.get("UPSTAGE_API_KEY"), model="solar-pro")
 
+# Reranker 모델 초기화 (모델 2용)
+reranker_model_name = "cross-encoder/ms-marco-MiniLM-L-12-v2"  # 적절한 CrossEncoder 모델 선택
+reranker = CrossEncoder(reranker_model_name)
+
 # 모델 구성 정의
 MODEL_CONFIGS = {
     1: {
-        "index_name": "model1-index",
+        "index_name": "model1",
         "dimension": 4096,
         "k": 1,
         "threshold": 0.6,
@@ -91,7 +71,7 @@ MODEL_CONFIGS = {
 '''
     },
     2: {
-        "index_name": "model2-index",
+        "index_name": "model2",
         "dimension": 4096,
         "k": 3,
         "threshold": None,
@@ -110,7 +90,7 @@ MODEL_CONFIGS = {
 '''
     },
     3: {
-        "index_name": "model3-index",
+        "index_name": "model3",
         "dimension": 768,
         "k": 1,
         "threshold": 0.8,
@@ -223,10 +203,31 @@ async def chat_endpoint(req: ChatRequest):
             messages_content = [msg.content for msg in req.messages]
             logger.info(f"Messages content: {messages_content}")
             result_docs = retriever.invoke(messages_content)
-        logger.info(f"Retrieved {len(result_docs)} documents")
+
+            if req.model_id == 2:
+                # Reranker 적용
+                query = req.messages[-1].content
+                retrieved_texts = [doc.page_content for doc in result_docs]
+                logger.info(f"Applying reranker for model_id=2 with query: {query}")
+
+                # Reranker 입력 형식: (query, doc)
+                pairs = [(query, text) for text in retrieved_texts]
+                reranked_scores = reranker.predict(pairs)
+
+                # 문서와 점수를 함께 묶기
+                scored_docs = list(zip(result_docs, reranked_scores))
+
+                # 점수를 기준으로 내림차순 정렬
+                scored_docs.sort(key=lambda x: x[1], reverse=True)
+
+                # 정렬된 문서만 다시 추출
+                result_docs = [doc for doc, score in scored_docs]
+                logger.info(f"Documents reranked for model_id=2")
     except Exception as e:
         logger.error(f"Error during retrieval: {e}")
         raise HTTPException(status_code=500, detail="Error during retrieval")
+
+    logger.info(f"Retrieved {len(result_docs)} documents")
 
     # 검색된 문서의 내용을 하나의 문자열로 결합하여 컨텍스트 생성
     context = "\n\n".join([doc.page_content for doc in result_docs])
