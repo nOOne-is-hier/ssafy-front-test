@@ -1,25 +1,26 @@
 '''
-## **모델 1: Baseline (기본 설정)**
+## **모델 2: Chunking 최적화 및 Reranker 도입**
 
 ### 설계
 1. **Text Splitting**:
-   - Chunk Size: `1200 letters`
-   - Overlap: `100 letters`
+   - Chunk Size: `800 letters`
+   - Overlap: `200 letters`
 
 2. **Embedding**:
    - 모델: **embedding-query(Upstage Solar Embedding)** (범용 임베딩).
    - 벡터 차원: `4096(수치 수정 불가)`.
 
 3. **Retriever**:
-   - 반환할 문서 수(`k`): `1`.
-   - 유사도 임계값: `0.6`.
+   - 반환할 문서 수(`k`): `3`.
+   - 유사도 임계값: `없음(mmr)`.
 
 4. **Reranker**:
-   - 사용하지 않음.
+   - **CrossEncoder 기반 Reranker**를 사용.
+   - 검색된 상위 `3`개의 청크를 재정렬하여 최적의 청크를 선택.
 
 ### 목표
-- 단순한 RAG 파이프라인의 기준 성능 측정.
-- Chunking 및 기본 설정의 효율성 확인.
+- Chunking 설정을 최적화하여 맥락 유지와 검색 효율성 간 균형 확인.
+- Reranker 도입에 따른 검색 품질 및 응답 정확도 향상 평가.
 '''
 
 
@@ -39,6 +40,7 @@ from pinecone import Pinecone, ServerlessSpec
 from ragas.metrics import context_precision, context_recall, faithfulness, answer_relevancy
 from ragas import evaluate
 from datasets import Dataset
+from sentence_transformers import CrossEncoder
 
 
 try:
@@ -59,14 +61,24 @@ except:
 
 embedding_upstage = UpstageEmbeddings(model="embedding-query")
 chat_upstage = ChatUpstage(api_key=os.environ.get("UPSTAGE_API_KEY"), model="solar-pro")
+
+# Reranker 모델 초기화 (모델 2용)
+reranker_model_name = "cross-encoder/ms-marco-MiniLM-L-12-v2"  # 적절한 CrossEncoder 모델 선택
+reranker = CrossEncoder(reranker_model_name)
+
 prompt_template = PromptTemplate.from_template(
     '''{context}
 
-    당신은 STM 보드 전문가(STM Genie)입니다. 사용자에게 간단하고 명확한 답변을 제공합니다.
+    당신은 STM 보드와 관련된 모든 질문에 대해 깊이 있는 정보를 제공하는 AI 전문가(STM Genie)입니다.
 
     사용자의 질문: "{input}"
 
-    질문의 내용을 이해하고, 간결하면서도 정확하게 답변하세요. 불필요한 추가 설명은 생략하십시오.
+    질문과 관련된 모든 중요한 정보를 포괄적으로 답변하세요. 답변은 다음을 포함해야 합니다:
+    1. 질문의 핵심에 대한 직접적인 응답.
+    2. 질문과 관련된 추가적인 정보와 배경 설명.
+    3. 필요 시, 유용한 예시 또는 권장되는 방법.
+
+    답변은 논리적이고 명확한 구조로 작성하세요.
     '''
 )
 
@@ -87,9 +99,25 @@ def ragas_evalate(dataset):
 def fill_data(data, question, retr):
     results = retr.invoke(question)
     context = [doc.page_content for doc in results]
+    print((f"Applying reranker for model_id=2 with query: {question}"))
+    
+    # Reranker 입력 형식: (query, doc)
+    pairs = [(question, text) for text in context]
+    reranked_scores = reranker.predict(pairs)
+    
+    # 문서와 점수를 함께 묶기
+    scored_docs = list(zip(results, reranked_scores))
+
+    # 점수를 기준으로 내림차순 정렬
+    scored_docs.sort(key=lambda x: x[1], reverse=True)
+
+    # 최종 상위 3개 문서만 선택
+    result_docs = [doc for doc, score in scored_docs[:3]]
+    
+    final_context = "\n\n".join([doc.page_content for doc in result_docs])
 
     chain = prompt_template | chat_upstage | StrOutputParser()
-    answer = chain.invoke({"context": context, "input": question})
+    answer = chain.invoke({"context": final_context, "input": question})
 
     data["question"].append(question)
     data["answer"].append(answer)
@@ -113,7 +141,7 @@ pinecone_client = Pinecone(
 )
 
 # Index and PDF Path
-index_name = "model1"
+index_name = "model2"
 pdf_path = "raw_data.pdf"
 
 # Check if index exists
@@ -150,8 +178,8 @@ pinecone_vectorstore = LangChainPinecone.from_existing_index(
 )
 
 retriever = pinecone_vectorstore.as_retriever(
-    search_type='similarity',
-    search_kwargs={"k": 2}
+    search_type='mmr',
+    search_kwargs={"k": 10}
 )
 
 questions = [
