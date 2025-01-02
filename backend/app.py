@@ -115,10 +115,10 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["https://stm-genie.vercel.app"],  # 실제 서비스에서는 필요한 도메인만 허용하도록 수정 권장
+    allow_origins=["*"],  # 모든 도메인 허용
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # 모든 HTTP 메서드 허용
+    allow_headers=["*"],  # 모든 헤더 허용
 )
 
 class Message(BaseModel):
