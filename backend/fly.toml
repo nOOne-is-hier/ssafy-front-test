@@ -1,9 +1,9 @@
-# fly.toml app configuration file generated for stmgenie on 2025-01-02T06:18:30+09:00
+# fly.toml app configuration file generated for stm-genie on 2025-01-02T14:19:53+09:00
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'stmgenie'
+app = 'stm-genie'
 primary_region = 'nrt'
 
 [build]
