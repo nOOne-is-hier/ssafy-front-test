@@ -13,7 +13,7 @@ from transformers import AutoTokenizer, AutoModel  # SciBERT 관련 라이브러
 import torch  # PyTorch
 from langchain.prompts.chat import ChatPromptTemplate
 import logging
-from sentence_transformers import SentenceTransformer, CrossEncoder  # Reranker 관련 임포트
+from sentence_transformers import CrossEncoder  # Reranker 관련 임포트
 
 load_dotenv()
 
