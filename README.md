@@ -63,7 +63,7 @@
 ### Backend 설정
 1. 레포지토리 클론
    ```bash
-   git clone [https://lab.ssafy.com/lasnier/seasonal-ai.git]
+   git clone [https://github.com/nOOne-is-hier/STM-Genie.git]
    cd [project-name]/src/backend
    ```
 
