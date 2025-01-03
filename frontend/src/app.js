@@ -11,7 +11,7 @@ const manualBtn = document.getElementById("manual-btn");
 const modal = document.getElementById("manual-modal");
 const closeBtn = document.getElementById("close-btn");
 
-// const BASE_URL = process.env.API_ENDPOINT;
+const BASE_URL = process.env.API_ENDPOINT;
 
 let messages = []; // 대화 히스토리 배열
 const MAX_MESSAGES = 10; // 유지할 메시지 수
@@ -87,12 +87,12 @@ async function getAssistantResponse() {
   const modelId = parseInt(modelSelector.value, 10); // Get selected model ID
   const payload = { messages, model_id: modelId };
 
-  const response = await fetch('https://stm-genie.fly.dev/chat/', {
+  const response = await fetch(`${BASE_URL}/chat`, {
     method: 'POST',
     headers: {
         'Content-Type': 'application/json',
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
 });
 
   if (!response.ok) {
