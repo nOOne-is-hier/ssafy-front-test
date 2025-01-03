@@ -57,7 +57,7 @@ try:
 except:
     print("Something wrong with your API KEY. Check your API Console again.")
 
-embedding_upstage = UpstageEmbeddings(model="embedding-query")
+# 모델 및 프롬프트 구성
 chat_upstage = ChatUpstage(api_key=os.environ.get("UPSTAGE_API_KEY"), model="solar-pro")
 prompt_template = PromptTemplate.from_template(
     '''{context}
@@ -107,6 +107,7 @@ pc = Pinecone(api_key=pinecone_api_key)
 
 pinecone_env = os.environ.get("PINECONE_ENV")
 
+# Pinecone 클라이언트 인스턴스화
 pinecone_client = Pinecone(
     api_key=pinecone_api_key,
     environment=pinecone_env
@@ -127,23 +128,8 @@ if index_name not in pc.list_indexes().names():
 
 print(f"Processing {index_name}...")
 
-# Parse document
-# document_parse_loader = UpstageDocumentParseLoader(
-#     pdf_path,
-#     output_format='html',  # 결과물 형태 : HTML
-#     coordinates=False)  # 이미지 OCR 좌표계 가지고 오지 않기
-
-# docs = document_parse_loader.load()
-
-# Split the document into chunks
-text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1200,  # 모델 1에 따른 청크 크기
-    chunk_overlap=100  # 모델 1에 따른 오버랩 크기
-)
-
-# splits = text_splitter.split_documents(docs)
-
 # Store in Pinecone
+# 이미 Pinecone의 index_name에 chank 구성대로 저장되어 있기 때문에 chunk 관련 구성 X
 pinecone_vectorstore = LangChainPinecone.from_existing_index(
     index_name=index_name,
     embedding=embedding_upstage
@@ -154,6 +140,7 @@ retriever = pinecone_vectorstore.as_retriever(
     search_kwargs={"k": 2}
 )
 
+# 평가 질문 리스트
 questions = [
     "STM32F1 시리즈에서 클록(CLOCK) 소스는 어떤 종류가 있나요?",
     "NVIC(중첩 벡터 인터럽트 컨트롤러)의 역할은 무엇인가요?",

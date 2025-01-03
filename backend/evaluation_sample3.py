@@ -86,13 +86,10 @@ try:
 except:
     print("Something wrong with your API KEY. Check your API Console again.")
 
+
+# 모델 및 프롬프트 구성
 scibert_embeddings = SciBertEmbeddings()
 chat_upstage = ChatUpstage(api_key=os.environ.get("UPSTAGE_API_KEY"), model="solar-pro")
-
-# Reranker 모델 초기화 (모델 2용)
-reranker_model_name = "cross-encoder/ms-marco-MiniLM-L-12-v2"  # 적절한 CrossEncoder 모델 선택
-reranker = CrossEncoder(reranker_model_name)
-
 prompt_template = PromptTemplate.from_template(
     '''{context}
 
@@ -108,6 +105,10 @@ prompt_template = PromptTemplate.from_template(
     사용자가 더 깊은 이해를 할 수 있도록 세부적으로 작성하되, 명확한 논리적 흐름을 유지하세요.
     '''
 )
+
+# Reranker 모델 초기화 (모델 2용)
+reranker_model_name = "cross-encoder/ms-marco-MiniLM-L-12-v2"  # 적절한 CrossEncoder 모델 선택
+reranker = CrossEncoder(reranker_model_name)
 
 def ragas_evalate(dataset):
     result = evaluate(
@@ -167,23 +168,8 @@ if index_name not in pc.list_indexes().names():
 
 print(f"Processing {index_name}...")
 
-# Parse document
-# document_parse_loader = UpstageDocumentParseLoader(
-#     pdf_path,
-#     output_format='html',  # 결과물 형태 : HTML
-#     coordinates=False)  # 이미지 OCR 좌표계 가지고 오지 않기
-
-# docs = document_parse_loader.load()
-
-# Split the document into chunks
-# text_splitter = RecursiveCharacterTextSplitter(
-#     chunk_size=1200,  # 모델 1에 따른 청크 크기
-#     chunk_overlap=100  # 모델 1에 따른 오버랩 크기
-# )
-
-# splits = text_splitter.split_documents(docs)
-
 # Store in Pinecone
+# 이미 Pinecone의 index_name에 chank 구성대로 저장되어 있기 때문에 chunk 관련 구성 X
 pinecone_vectorstore = LangChainPinecone.from_existing_index(
     index_name=index_name,
     embedding=scibert_embeddings
@@ -194,14 +180,12 @@ retriever = pinecone_vectorstore.as_retriever(
     search_kwargs={"k": 3}
 )
 
+# 평가 질문 리스트
 questions = [
-    "STM32F1 시리즈에서 클록(CLOCK) 소스는 어떤 종류가 있나요?",
-    "NVIC(중첩 벡터 인터럽트 컨트롤러)의 역할은 무엇인가요?",
-    "STM32F1의 클록 트리에서 PLL(Phase-Locked Loop)을 설정하는 방법은 무엇인가요?",
-    "USART 통신에서 바이트를 송신하기 위해 설정해야 하는 주요 레지스터는 무엇인가요?",
-    "STM32F1에서 DMA와 ADC(Analog to Digital Converter)를 결합하여 데이터를 처리하는 방법은 무엇인가요?",
-    "STM32F1의 클록 트리에서 USB PLL 설정이 필요한 이유와 관련 레지스터는 무엇인가요?",
-    "STM32F1의 인터럽트 우선순위를 변경하려면 어떤 레지스터를 수정해야 하나요?"
+    "STM32F1 마이크로컨트롤러에서 타이머(Timer)를 설정하려면 어떤 레지스터를 주로 사용하나요?",
+    "STM32F1의 GPIO에서 외부 인터럽트를 활성화하려면 어떤 설정이 필요한가요?",
+    "RTC(Real-Time Clock) 기능을 활성화하기 위한 기본 설정 과정은 무엇인가요?",
+    "저전력 모드(Low Power Mode)로 전환하는 과정과 관련된 레지스터는 무엇인가요?"
 ]
 
 ex1_data = {
